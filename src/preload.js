@@ -1,5 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const optimizer = require('./optimizations');
+const cleaner = require('./cleaners');
+const tweaks = require('./tweaks');
+const analytics = require('./analytics');
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -38,9 +41,48 @@ contextBridge.exposeInMainWorld(
       
       // Settings
       getSettings: () => optimizer.getSettings(),
-      saveSettings: (settings) => optimizer.saveSettings(settings),
-
-      // Additional Controls
+      saveSettings: (settings) => optimizer.saveSettings(settings)
+    },
+    cleaner: {
+      // System Cleaning
+      cleanSystem: () => cleaner.cleanSystem(),
+      cleanPath: (path) => cleaner.cleanPath(path),
+      cleanRegistry: () => cleaner.cleanRegistry(),
+      optimizeDrives: () => cleaner.optimizeDrives(),
+      cleanWindowsComponents: () => cleaner.cleanWindowsComponents(),
+      clearEventLogs: () => cleaner.clearEventLogs(),
+      cleanWindowsSearch: () => cleaner.cleanWindowsSearch(),
+      cleanSystemRestorePoints: () => cleaner.cleanSystemRestorePoints()
+    },
+    tweaks: {
+      // Gaming Tweaks
+      applyGamingTweaks: () => tweaks.applyGamingTweaks(),
+      
+      // Network Tweaks
+      applyNetworkTweaks: () => tweaks.applyNetworkTweaks(),
+      
+      // Privacy Tweaks
+      applyPrivacyTweaks: () => tweaks.applyPrivacyTweaks(),
+      
+      // Power Plan
+      optimizePowerPlan: () => tweaks.optimizePowerPlan(),
+      
+      // Settings Management
+      restoreSettings: (category) => tweaks.restoreSettings(category)
+    },
+    analytics: {
+      // System Information
+      getFullSystemInfo: () => analytics.getFullSystemInfo(),
+      
+      // Performance Monitoring
+      getPerformanceMetrics: () => analytics.getPerformanceMetrics(),
+      getPerformanceHistory: (duration) => analytics.getPerformanceHistory(duration),
+      
+      // System Health
+      getSystemHealth: () => analytics.getSystemHealth()
+    },
+    // Additional Controls
+    controls: {
       togglePowerPlan: (enable) => optimizer.togglePowerPlan(enable),
       toggleWindowsGameMode: (enable) => optimizer.toggleWindowsGameMode(enable),
       toggleGPUPriority: (enable) => optimizer.toggleGPUPriority(enable),
