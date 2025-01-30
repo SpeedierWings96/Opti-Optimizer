@@ -1,568 +1,695 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Amazing Optimizer</title>
-  <style>
-    /* 
-     * Global reset 
-     */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-    }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      background: #0a0a0f;
-      overflow: hidden;
-      background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
-    }
-
-    /* Titlebar */
-    .titlebar {
-      -webkit-app-region: drag;
-      height: 32px;
-      background: rgba(13, 13, 24, 0.8);
-      backdrop-filter: blur(10px);
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      padding: 0 15px;
-      border-bottom: 1px solid rgba(124, 77, 255, 0.2);
-      border-radius: 12px 12px 0 0;
-      background: rgba(13, 13, 24, 0.95);
-    }
-
-    .titlebar-title {
-      color: #fff;
-      font-size: 0.9rem;
-      opacity: 0.8;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .titlebar-title::before {
-      content: "⚡";
-      font-size: 1.2rem;
-      animation: glowPulse 2s infinite;
-    }
-
-    @keyframes glowPulse {
-      0% { text-shadow: 0 0 10px rgba(124, 77, 255, 0.5); }
-      50% { text-shadow: 0 0 20px rgba(124, 77, 255, 1); }
-      100% { text-shadow: 0 0 10px rgba(124, 77, 255, 0.5); }
-    }
-
-    /* Stars background */
-    .stars {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      background: transparent;
-    }
-
-    @keyframes animStar {
-      from {
-        transform: translateY(0);
-      }
-      to {
-        transform: translateY(-2000px);
-      }
-    }
-
-    .stars::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: 
-        radial-gradient(1px 1px at 25% 25%, rgba(255, 255, 255, 0.2) 1px, transparent 0),
-        radial-gradient(2px 2px at 50% 50%, rgba(255, 255, 255, 0.1) 1px, transparent 0),
-        radial-gradient(1px 1px at 75% 75%, rgba(255, 255, 255, 0.3) 1px, transparent 0);
-      background-size: 250px 250px;
-      animation: animStar 100s linear infinite;
-    }
-
-    /* Sidebar Styling */
-    .sidebar {
-      position: fixed;
-      left: 0;
-      top: 32px; /* Account for titlebar */
-      width: 250px;
-      height: calc(100% - 32px);
-      background: rgba(19, 19, 31, 0.8);
-      backdrop-filter: blur(10px);
-      border-right: 1px solid rgba(124, 77, 255, 0.2);
-      padding: 20px 0;
-      border-radius: 0 12px 12px 0;
-      background: rgba(19, 19, 31, 0.95);
-    }
-
-    .sidebar-title {
-      color: #fff;
-      font-size: 1.2rem;
-      padding: 0 20px;
-      margin-bottom: 20px;
-      text-shadow: 0 0 10px rgba(124, 77, 255, 0.5);
-    }
-
-    .optimization-section {
-      padding: 12px 20px;
-      color: #a9a9c8;
-      cursor: pointer;
-      transition: 0.3s ease;
-      display: flex;
-      align-items: center;
-      border-left: 3px solid transparent;
-      margin: 5px 10px;
-      border-radius: 8px;
-      border: 1px solid transparent;
-    }
-
-    .optimization-section:hover {
-      background: rgba(31, 31, 47, 0.8);
-      color: #fff;
-      border-left: 3px solid rgba(124, 77, 255, 0.5);
-      border: 1px solid rgba(124, 77, 255, 0.3);
-    }
-
-    .optimization-section.active {
-      background: rgba(42, 42, 63, 0.8);
-      color: #fff;
-      border-left: 3px solid #7c4dff;
-      box-shadow: inset 0 0 20px rgba(124, 77, 255, 0.2);
-      border: 1px solid rgba(124, 77, 255, 0.5);
-    }
-
-    .optimization-section i {
-      margin-right: 15px;
-      font-size: 1.2rem;
-      text-shadow: 0 0 10px rgba(255,255,255,0.5);
-    }
-
-    /* Main Content Area */
-    .main-content {
-      margin-left: 250px;
-      margin-top: 32px; /* Account for titlebar */
-      padding: 30px;
-      height: calc(100vh - 32px);
-      background: rgba(19, 19, 31, 0.4);
-      backdrop-filter: blur(10px);
-    }
-
-    .section-content {
-      display: none;
-      animation: fadeIn 0.3s ease;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.5s ease-out;
-    }
-
-    .section-content.active {
-      display: block;
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    h1 {
-      font-size: 2.2rem;
-      color: #fff;
-      margin-bottom: 20px;
-      text-shadow: 0 0 15px rgba(124, 77, 255, 0.5);
-    }
-
-    .optimize-btn {
-      background: linear-gradient(45deg, #7c4dff, #9670ff);
-      border: none;
-      border-radius: 6px;
-      color: #ffffff;
-      font-size: 1rem;
-      padding: 0.8rem 1.5rem;
-      cursor: pointer;
-      transition: 0.3s ease;
-      margin: 10px 0;
-      box-shadow: 0 0 20px rgba(124, 77, 255, 0.3);
-      border-radius: 12px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .optimize-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 30px rgba(124, 77, 255, 0.5);
-    }
-
-    .optimize-btn::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: rgba(255, 255, 255, 0.1);
-      transform: rotate(45deg);
-      animation: shimmer 3s infinite;
-      pointer-events: none;
-    }
-
-    @keyframes shimmer {
-      0% { transform: translateX(-100%) rotate(45deg); }
-      100% { transform: translateX(100%) rotate(45deg); }
-    }
-
-    .progress-container {
-      margin-top: 1rem;
-      width: 100%;
-      max-width: 400px;
-      height: 8px;
-      background: rgba(255,255,255, 0.1);
-      border-radius: 4px;
-      overflow: hidden;
-      box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
-    }
-
-    .progress-fill {
-      height: 100%;
-      width: 0;
-      background: linear-gradient(90deg, #7c4dff, #9670ff);
-      border-radius: 4px;
-      transition: width 0.4s ease;
-      box-shadow: 0 0 10px rgba(124, 77, 255, 0.5);
-    }
-
-    .status-text {
-      margin-top: 1rem;
-      color: #a9a9c8;
-      font-size: 0.9rem;
-    }
-
-    .section-description {
-      color: #a9a9c8;
-      margin-bottom: 20px;
-      line-height: 1.6;
-      max-width: 600px;
-      background: rgba(19, 19, 31, 0.4);
-      padding: 20px;
-      border-radius: 8px;
-      border: 1px solid rgba(124, 77, 255, 0.2);
-      backdrop-filter: blur(5px);
-      border-radius: 16px;
-      transform: translateY(0);
-      transition: transform 0.3s ease;
-    }
-
-    .section-description:hover {
-      transform: translateY(-2px);
-    }
-
-    /* Add brand logo animation */
-    .brand-logo {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 3rem;
-      color: #fff;
-      text-align: center;
-      z-index: 2000;
-      pointer-events: none;
-      animation: logoReveal 2s ease-out forwards;
-    }
-
-    .brand-logo span {
-      display: block;
-      font-size: 1.2rem;
-      margin-top: 10px;
-      opacity: 0;
-      animation: fadeIn 0.5s ease-out 1s forwards;
-    }
-
-    @keyframes logoReveal {
-      0% { 
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.5);
-      }
-      50% { 
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-      }
-      100% { 
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.8);
-        visibility: hidden;
-      }
-    }
-
-    @keyframes fadeInApp {
-        0% { opacity: 0; transform: scale(0.95); }
-        100% { opacity: 1; transform: scale(1); }
-    }
-
-    .app-container {
-        animation: fadeInApp 1s ease-out;
-    }
-
-    /* Enhanced startup animation */
-    .startup-animation {
-        position: fixed;
-        width: 100vw;
-        height: 100vh;
-        background: #0a0a0f;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 3000;
-        animation: fadeOutStartup 0.5s ease-out 2.5s forwards;
-    }
-
-    .startup-logo {
-        position: relative;
-        text-align: center;
-    }
-
-    .startup-icon {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        display: inline-block;
-        animation: pulseGlow 1s ease-in-out infinite;
-    }
-
-    .startup-text {
-        font-size: 2.5rem;
-        color: #fff;
-        opacity: 0;
-        animation: slideUp 0.5s ease-out 0.5s forwards;
-    }
-
-    .startup-tagline {
-        font-size: 1rem;
-        color: #a9a9c8;
-        opacity: 0;
-        animation: slideUp 0.5s ease-out 1s forwards;
-    }
-
-    .startup-loading {
-        width: 200px;
-        height: 3px;
-        background: rgba(124, 77, 255, 0.2);
-        border-radius: 3px;
-        margin-top: 2rem;
-        overflow: hidden;
-        opacity: 0;
-        animation: fadeIn 0.5s ease-out 1.5s forwards;
-    }
-
-    .startup-loading-bar {
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, #7c4dff, #9670ff);
-        animation: loadProgress 1s ease-out 1.5s forwards;
-        transform: translateX(-100%);
-    }
-
-    @keyframes pulseGlow {
-        0% { text-shadow: 0 0 20px rgba(124, 77, 255, 0.5); }
-        50% { text-shadow: 0 0 40px rgba(124, 77, 255, 1); }
-        100% { text-shadow: 0 0 20px rgba(124, 77, 255, 0.5); }
-    }
-
-    @keyframes slideUp {
-        from { 
-            transform: translateY(20px);
-            opacity: 0;
+    <meta charset="UTF-8">
+    <title>Opti Optimizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            user-select: none;
         }
-        to { 
+
+        :root {
+            --primary: #7c4dff;
+            --primary-dark: #3f1dcb;
+            --secondary: #1a1a2e;
+            --accent: #00ff9d;
+            --text: #ffffff;
+            --text-secondary: #a0a0a0;
+            --background: #0a0a0f;
+            --card-bg: #16161e;
+            --danger: #ff4d4d;
+            --success: #00ff9d;
+        }
+
+        body {
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .titlebar {
+            -webkit-app-region: drag;
+            height: 32px;
+            background: rgba(13, 13, 24, 0.8);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            border-bottom: 1px solid rgba(124, 77, 255, 0.2);
+            border-radius: 12px 12px 0 0;
+        }
+
+        .titlebar-title {
+            color: var(--text);
+            font-size: 0.9rem;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .titlebar-controls {
+            -webkit-app-region: no-drag;
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        .titlebar-button {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            opacity: 0.6;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .titlebar-button:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .titlebar-button.close:hover {
+            background: var(--danger);
+        }
+
+        .container {
+            margin-top: 32px;
+            padding: 20px;
+            height: calc(100vh - 32px);
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .nav-item {
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+        }
+
+        .nav-item:hover {
+            background: rgba(124, 77, 255, 0.1);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: var(--primary);
+            color: var(--text);
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .main-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .main-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .main-content::-webkit-scrollbar-thumb {
+            background: var(--secondary);
+            border-radius: 4px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+        }
+
+        .stat-title {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .stat-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .optimization-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .toggle-card {
+            background: rgba(26, 26, 46, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-card:hover {
+            background: rgba(26, 26, 46, 0.8);
+        }
+
+        .toggle-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .toggle-title {
+            font-size: 1rem;
+        }
+
+        .toggle-description {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .toggle-switch {
+            width: 50px;
+            height: 26px;
+            background: var(--secondary);
+            border-radius: 13px;
+            padding: 3px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            background: var(--text);
+            border-radius: 50%;
+            position: absolute;
+            left: 3px;
+            transition: all 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: var(--primary);
+        }
+
+        .toggle-switch.active::after {
+            left: 27px;
+        }
+
+        .action-button {
+            background: var(--primary);
+            color: var(--text);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-button:hover {
+            background: var(--primary-dark);
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .optimizing {
+            animation: pulse 2s infinite;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show {
             transform: translateY(0);
             opacity: 1;
         }
-    }
 
-    @keyframes loadProgress {
-        to { transform: translateX(0); }
-    }
-
-    @keyframes fadeOutStartup {
-        to { 
-            opacity: 0;
-            visibility: hidden;
+        .toast.success {
+            border-left: 4px solid var(--success);
         }
-    }
-  </style>
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+    </style>
 </head>
 <body>
-  <div class="startup-animation">
-    <div class="startup-logo">
-      <div class="startup-icon">⚡</div>
-      <div class="startup-text">Opti Optimizer</div>
-      <div class="startup-tagline">Initializing System Optimization...</div>
-      <div class="startup-loading">
-        <div class="startup-loading-bar"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="brand-logo">
-    ⚡ Opti Optimizer
-    <span>Unleash Your System's Potential</span>
-  </div>
-
-  <div class="app-container">
-    <div class="stars"></div>
     <div class="titlebar">
-      <div class="titlebar-title">Opti Optimizer</div>
-    </div>
-    <!-- Sidebar -->
-    <div class="sidebar">
-      <div class="sidebar-title">⚡ Optimization Suite</div>
-      <div class="optimization-section active" data-section="memory">
-        <i>🧠</i> Memory Optimizer
-      </div>
-      <div class="optimization-section" data-section="disk">
-        <i>💿</i> Disk Cleanup
-      </div>
-      <div class="optimization-section" data-section="network">
-        <i>🌐</i> Network Boost
-      </div>
-      <div class="optimization-section" data-section="startup">
-        <i>🚀</i> Startup Manager
-      </div>
-      <div class="optimization-section" data-section="gaming">
-        <i>🎮</i> Gaming Optimizer
-      </div>
+        <div class="titlebar-title">
+            <img src="../build/icon.ico" width="16" height="16" alt="Logo">
+            Opti Optimizer
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-button" id="minimize-button">─</button>
+            <button class="titlebar-button" id="maximize-button">□</button>
+            <button class="titlebar-button close" id="close-button">×</button>
+        </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="main-content">
-      <!-- Memory Section -->
-      <div class="section-content active" id="memory-section">
-        <h1>Memory Optimizer</h1>
-        <div class="section-description">
-          Optimize your system's memory usage by cleaning up unnecessary processes
-          and freeing up RAM for better performance.
+    <div class="container">
+        <div class="sidebar">
+            <div class="nav-item active" data-page="dashboard">
+                <i class="fas fa-chart-line"></i>
+                Dashboard
+            </div>
+            <div class="nav-item" data-page="optimizations">
+                <i class="fas fa-magic"></i>
+                Optimizations
+            </div>
+            <div class="nav-item" data-page="gaming">
+                <i class="fas fa-gamepad"></i>
+                Gaming Mode
+            </div>
+            <div class="nav-item" data-page="privacy">
+                <i class="fas fa-shield-alt"></i>
+                Privacy
+            </div>
+            <div class="nav-item" data-page="settings">
+                <i class="fas fa-cog"></i>
+                Settings
+            </div>
         </div>
-        <button class="optimize-btn" onclick="startOptimization('memory')">Optimize Memory</button>
-        <div class="progress-container">
-          <div id="memory-progress" class="progress-fill"></div>
-        </div>
-        <div id="memory-status" class="status-text"></div>
-      </div>
 
-      <!-- Disk Section -->
-      <div class="section-content" id="disk-section">
-        <h1>Disk Cleanup</h1>
-        <div class="section-description">
-          Clean temporary files, system caches, and unnecessary data to free up
-          valuable disk space.
-        </div>
-        <button class="optimize-btn" onclick="startOptimization('disk')">Clean Disk</button>
-        <div class="progress-container">
-          <div id="disk-progress" class="progress-fill"></div>
-        </div>
-        <div id="disk-status" class="status-text"></div>
-      </div>
+        <div class="main-content">
+            <!-- Dashboard Page -->
+            <div class="page" id="dashboard-page">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-title">CPU Usage</div>
+                        <div class="stat-value" id="cpu-usage">0%</div>
+                        <div class="stat-subtitle">8 Cores</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Memory Usage</div>
+                        <div class="stat-value" id="memory-usage">0%</div>
+                        <div class="stat-subtitle" id="memory-total">16GB Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Disk Usage</div>
+                        <div class="stat-value" id="disk-usage">0%</div>
+                        <div class="stat-subtitle" id="disk-free">500GB Free</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Network</div>
+                        <div class="stat-value" id="network-speed">0 MB/s</div>
+                        <div class="stat-subtitle">Download Speed</div>
+                    </div>
+                </div>
 
-      <!-- Network Section -->
-      <div class="section-content" id="network-section">
-        <h1>Network Boost</h1>
-        <div class="section-description">
-          Optimize network settings for faster internet speeds and lower latency.
-        </div>
-        <button class="optimize-btn" onclick="startOptimization('network')">Boost Network</button>
-        <div class="progress-container">
-          <div id="network-progress" class="progress-fill"></div>
-        </div>
-        <div id="network-status" class="status-text"></div>
-      </div>
+                <div class="chart-container">
+                    <canvas id="performance-chart"></canvas>
+                </div>
+            </div>
 
-      <!-- Startup Section -->
-      <div class="section-content" id="startup-section">
-        <h1>Startup Manager</h1>
-        <div class="section-description">
-          Manage and optimize programs that run at system startup to improve boot time.
-        </div>
-        <button class="optimize-btn" onclick="startOptimization('startup')">Optimize Startup</button>
-        <div class="progress-container">
-          <div id="startup-progress" class="progress-fill"></div>
-        </div>
-        <div id="startup-status" class="status-text"></div>
-      </div>
+            <!-- Optimizations Page -->
+            <div class="page" id="optimizations-page" style="display: none;">
+                <div class="optimization-section">
+                    <div class="section-title">
+                        <i class="fas fa-bolt"></i>
+                        System Optimizations
+                    </div>
+                    <div class="toggle-group">
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Performance Mode</div>
+                                <div class="toggle-description">Maximize system performance</div>
+                            </div>
+                            <div class="toggle-switch" id="performance-mode"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Memory Optimization</div>
+                                <div class="toggle-description">Clean and optimize RAM usage</div>
+                            </div>
+                            <div class="toggle-switch" id="memory-optimization"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Network Optimization</div>
+                                <div class="toggle-description">Improve network performance</div>
+                            </div>
+                            <div class="toggle-switch" id="network-optimization"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Dark Mode</div>
+                                <div class="toggle-description">System-wide dark theme</div>
+                            </div>
+                            <div class="toggle-switch" id="dark-mode"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-      <!-- Gaming Section -->
-      <div class="section-content" id="gaming-section">
-        <h1>Gaming Optimizer</h1>
-        <div class="section-description">
-          Optimize system resources for gaming performance and reduce system latency.
+            <!-- Gaming Mode Page -->
+            <div class="page" id="gaming-page" style="display: none;">
+                <div class="optimization-section">
+                    <div class="section-title">
+                        <i class="fas fa-gamepad"></i>
+                        Gaming Optimizations
+                    </div>
+                    <div class="toggle-group">
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Gaming Mode</div>
+                                <div class="toggle-description">Optimize for gaming performance</div>
+                            </div>
+                            <div class="toggle-switch" id="gaming-mode"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">High Performance Power Plan</div>
+                                <div class="toggle-description">Maximum power for gaming</div>
+                            </div>
+                            <div class="toggle-switch" id="power-plan"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Game Mode</div>
+                                <div class="toggle-description">Windows Game Mode settings</div>
+                            </div>
+                            <div class="toggle-switch" id="windows-game-mode"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">GPU Priority</div>
+                                <div class="toggle-description">Prioritize GPU for games</div>
+                            </div>
+                            <div class="toggle-switch" id="gpu-priority"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Page -->
+            <div class="page" id="privacy-page" style="display: none;">
+                <div class="optimization-section">
+                    <div class="section-title">
+                        <i class="fas fa-shield-alt"></i>
+                        Privacy Settings
+                    </div>
+                    <div class="toggle-group">
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Privacy Mode</div>
+                                <div class="toggle-description">Enhanced privacy protection</div>
+                            </div>
+                            <div class="toggle-switch" id="privacy-mode"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Telemetry</div>
+                                <div class="toggle-description">Disable Windows telemetry</div>
+                            </div>
+                            <div class="toggle-switch" id="telemetry"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Location Services</div>
+                                <div class="toggle-description">Control location tracking</div>
+                            </div>
+                            <div class="toggle-switch" id="location-services"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Activity History</div>
+                                <div class="toggle-description">Manage activity tracking</div>
+                            </div>
+                            <div class="toggle-switch" id="activity-history"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div class="page" id="settings-page" style="display: none;">
+                <div class="optimization-section">
+                    <div class="section-title">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </div>
+                    <div class="toggle-group">
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Start with Windows</div>
+                                <div class="toggle-description">Launch on system startup</div>
+                            </div>
+                            <div class="toggle-switch" id="auto-start"></div>
+                        </div>
+                        <div class="toggle-card">
+                            <div class="toggle-info">
+                                <div class="toggle-title">Notifications</div>
+                                <div class="toggle-description">Show system notifications</div>
+                            </div>
+                            <div class="toggle-switch" id="notifications"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <button class="optimize-btn" onclick="startOptimization('gaming')">Optimize for Gaming</button>
-        <div class="progress-container">
-          <div id="gaming-progress" class="progress-fill"></div>
-        </div>
-        <div id="gaming-status" class="status-text"></div>
-      </div>
     </div>
-  </div>
 
-  <script>
-    // Section switching
-    document.querySelectorAll('.optimization-section').forEach(section => {
-      section.addEventListener('click', () => {
-        // Remove active class from all sections
-        document.querySelectorAll('.optimization-section').forEach(s => 
-          s.classList.remove('active'));
-        document.querySelectorAll('.section-content').forEach(s => 
-          s.classList.remove('active'));
-        
-        // Add active class to clicked section
-        section.classList.add('active');
-        document.getElementById(`${section.dataset.section}-section`).classList.add('active');
-      });
-    });
+    <div class="toast" id="toast">
+        <i class="fas fa-check"></i>
+        <span id="toast-message">Settings saved successfully</span>
+    </div>
 
-    // Optimization logic
-    function startOptimization(type) {
-      const progressBar = document.getElementById(`${type}-progress`);
-      const statusText = document.getElementById(`${type}-status`);
-      let progress = 0;
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Window Controls
+        document.getElementById('minimize-button').addEventListener('click', () => {
+            window.api.window.minimize();
+        });
 
-      // Prevent multiple runs
-      if (progressBar.style.width !== '0%' && progressBar.style.width !== '') {
-        return;
-      }
+        document.getElementById('maximize-button').addEventListener('click', () => {
+            window.api.window.maximize();
+        });
 
-      statusText.textContent = "Starting optimization...";
-      progressBar.style.width = '0%';
+        document.getElementById('close-button').addEventListener('click', () => {
+            window.api.window.close();
+        });
 
-      const interval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
-          statusText.textContent = "Optimization complete!";
-        } else {
-          statusText.textContent = `Optimizing... ${Math.floor(progress)}%`;
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+                
+                document.querySelectorAll('.page').forEach(page => page.style.display = 'none');
+                document.getElementById(`${item.dataset.page}-page`).style.display = 'block';
+            });
+        });
+
+        // Toggle Switches
+        document.querySelectorAll('.toggle-switch').forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                toggle.classList.toggle('active');
+                const isActive = toggle.classList.contains('active');
+                
+                // Call appropriate API based on toggle ID
+                switch(toggle.id) {
+                    case 'performance-mode':
+                        window.api.optimizer.togglePerformanceMode(isActive);
+                        break;
+                    case 'gaming-mode':
+                        window.api.optimizer.toggleGamingMode(isActive);
+                        break;
+                    case 'dark-mode':
+                        window.api.optimizer.toggleDarkMode(isActive);
+                        break;
+                    case 'privacy-mode':
+                        window.api.optimizer.togglePrivacyMode(isActive);
+                        break;
+                }
+
+                showToast(`${toggle.id.replace('-', ' ')} ${isActive ? 'enabled' : 'disabled'}`, isActive ? 'success' : 'error');
+            });
+        });
+
+        // Performance Chart
+        const ctx = document.getElementById('performance-chart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CPU Usage',
+                    borderColor: '#7c4dff',
+                    data: []
+                }, {
+                    label: 'Memory Usage',
+                    borderColor: '#00ff9d',
+                    data: []
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 0
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        // Update system stats
+        async function updateStats() {
+            const status = await window.api.optimizer.getSystemStatus();
+            
+            document.getElementById('cpu-usage').textContent = `${Math.round(status.cpu.load)}%`;
+            document.getElementById('memory-usage').textContent = `${Math.round((status.memory.used / status.memory.total) * 100)}%`;
+            document.getElementById('disk-usage').textContent = `${Math.round(status.disk.usage)}%`;
+            document.getElementById('network-speed').textContent = `${Math.round(status.network.download / 1024 / 1024)} MB/s`;
+
+            // Update chart
+            const time = new Date().toLocaleTimeString();
+            chart.data.labels.push(time);
+            chart.data.datasets[0].data.push(Math.round(status.cpu.load));
+            chart.data.datasets[1].data.push(Math.round((status.memory.used / status.memory.total) * 100));
+
+            if (chart.data.labels.length > 10) {
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+
+            chart.update();
         }
-        progressBar.style.width = `${progress}%`;
-      }, 500);
-    }
-  </script>
+
+        // Toast notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            
+            toast.className = `toast show ${type}`;
+            toastMessage.textContent = message;
+
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 3000);
+        }
+
+        // Initialize
+        window.api.onAppReady(() => {
+            // Load initial settings
+            const settings = window.api.optimizer.getSettings();
+            Object.entries(settings).forEach(([key, value]) => {
+                const toggle = document.getElementById(key);
+                if (toggle && value) {
+                    toggle.classList.add('active');
+                }
+            });
+
+            // Start stats update
+            setInterval(updateStats, 1000);
+        });
+    </script>
 </body>
 </html> 

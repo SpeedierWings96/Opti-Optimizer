@@ -2,6 +2,8 @@ const si = require('systeminformation');
 const os = require('os');
 const { exec } = require('child_process');
 const Store = require('electron-store');
+const path = require('path');
+const fs = require('fs').promises;
 
 const store = new Store();
 
@@ -11,16 +13,21 @@ class SystemOptimizer {
             running: false,
             memoryOptimized: false,
             networkOptimized: false,
-            diskOptimized: false
+            diskOptimized: false,
+            gamingMode: false,
+            darkMode: false,
+            privacyMode: false,
+            performanceMode: false
         };
     }
 
     async getSystemStatus() {
-        const [cpu, mem, disk, net] = await Promise.all([
+        const [cpu, mem, disk, net, graphics] = await Promise.all([
             si.currentLoad(),
             si.mem(),
             si.fsSize(),
-            si.networkStats()
+            si.networkStats(),
+            si.graphics()
         ]);
 
         return {
@@ -42,106 +49,275 @@ class SystemOptimizer {
             network: {
                 upload: net[0].tx_sec,
                 download: net[0].rx_sec
-            }
+            },
+            gpu: graphics.controllers[0]
         };
     }
 
+    // Windows Registry Tweaks
+    async setRegistryValue(key, name, type, value) {
+        const command = `reg add "${key}" /v "${name}" /t ${type} /d ${value} /f`;
+        return new Promise((resolve, reject) => {
+            exec(command, (error) => {
+                if (error) reject(error);
+                else resolve(true);
+            });
+        });
+    }
+
+    // Enhanced Memory Optimization
     async optimizeMemory() {
         if (process.platform === 'win32') {
-            // Windows memory optimization
-            exec('powershell -Command "Empty-RecycleBin -Force -ErrorAction SilentlyContinue"');
-            exec('powershell -Command "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"');
-            exec('powershell -Command "Stop-Process -Name \"Memory Compression\" -Force -ErrorAction SilentlyContinue"');
-        } else if (process.platform === 'linux') {
-            // Linux memory optimization
-            exec('sync && echo 3 | sudo tee /proc/sys/vm/drop_caches');
-            exec('sudo sysctl -w vm.swappiness=10');
+            await Promise.all([
+                // Clear system working set
+                exec('powershell -Command "EmptyStandbyList"'),
+                // Clear DNS cache
+                exec('ipconfig /flushdns'),
+                // Clear temp files
+                exec('del /f /s /q %temp%\\*'),
+                // Disable superfetch
+                exec('net stop superfetch'),
+                // Optimize paging file
+                this.setRegistryValue(
+                    'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management',
+                    'PagingFiles',
+                    'REG_MULTI_SZ',
+                    'C:\\pagefile.sys 16384 16384'
+                )
+            ]);
         }
         this.optimizations.memoryOptimized = true;
         return true;
     }
 
+    // Enhanced Network Optimization
     async optimizeNetwork() {
         if (process.platform === 'win32') {
-            // Windows network optimization
-            exec('ipconfig /flushdns');
-            exec('netsh int tcp set global autotuninglevel=normal');
-            exec('netsh interface tcp set heuristics disabled');
-            exec('netsh interface tcp set global rss=enabled');
-        } else if (process.platform === 'linux') {
-            // Linux network optimization
-            exec('sudo systemctl restart NetworkManager');
-            exec('sudo ip tcp_metrics flush');
+            await Promise.all([
+                // Optimize TCP settings
+                exec('netsh int tcp set global autotuninglevel=normal'),
+                exec('netsh int tcp set global chimney=enabled'),
+                exec('netsh int tcp set global dca=enabled'),
+                exec('netsh int tcp set global netdma=enabled'),
+                // Optimize network adapter
+                exec('netsh int ip reset'),
+                exec('netsh winsock reset'),
+                // Set DNS to Google's DNS
+                exec('netsh interface ip set dns "Ethernet" static 8.8.8.8'),
+                exec('netsh interface ip add dns "Ethernet" 8.8.4.4 index=2'),
+                // Enable QoS
+                this.setRegistryValue(
+                    'HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Psched',
+                    'NonBestEffortLimit',
+                    'REG_DWORD',
+                    '0'
+                )
+            ]);
         }
         this.optimizations.networkOptimized = true;
         return true;
     }
 
-    async optimizeDisk() {
+    // Enhanced Gaming Mode
+    async toggleGamingMode(enable = true) {
         if (process.platform === 'win32') {
-            // Windows disk optimization
-            exec('powershell -Command "Optimize-Volume -DriveLetter C -ReTrim -Verbose"');
-            exec('cleanmgr /sagerun:1');
-        } else if (process.platform === 'linux') {
-            // Linux disk optimization
-            exec('sudo fstrim -av');
-            exec('sudo e4defrag /');
+            if (enable) {
+                await Promise.all([
+                    // Set high performance power plan
+                    exec('powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c'),
+                    // Optimize for gaming
+                    this.setRegistryValue(
+                        'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile',
+                        'SystemResponsiveness',
+                        'REG_DWORD',
+                        '0'
+                    ),
+                    this.setRegistryValue(
+                        'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games',
+                        'GPU Priority',
+                        'REG_DWORD',
+                        '8'
+                    ),
+                    this.setRegistryValue(
+                        'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games',
+                        'Priority',
+                        'REG_DWORD',
+                        '6'
+                    ),
+                    // Disable full-screen optimizations
+                    this.setRegistryValue(
+                        'HKCU\\System\\GameConfigStore',
+                        'GameDVR_Enabled',
+                        'REG_DWORD',
+                        '0'
+                    ),
+                    // Disable Game Bar
+                    this.setRegistryValue(
+                        'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\GameDVR',
+                        'AppCaptureEnabled',
+                        'REG_DWORD',
+                        '0'
+                    ),
+                    // Optimize mouse settings
+                    this.setRegistryValue(
+                        'HKCU\\Control Panel\\Mouse',
+                        'MouseSensitivity',
+                        'REG_SZ',
+                        '10'
+                    ),
+                    // Disable power throttling
+                    this.setRegistryValue(
+                        'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling',
+                        'PowerThrottlingOff',
+                        'REG_DWORD',
+                        '1'
+                    )
+                ]);
+            } else {
+                // Restore default settings
+                await Promise.all([
+                    exec('powercfg -setactive scheme_balanced'),
+                    this.setRegistryValue(
+                        'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile',
+                        'SystemResponsiveness',
+                        'REG_DWORD',
+                        '20'
+                    )
+                ]);
+            }
         }
-        this.optimizations.diskOptimized = true;
+        this.optimizations.gamingMode = enable;
         return true;
     }
 
-    async optimizeGaming() {
+    // System Theme Control
+    async toggleDarkMode(enable = true) {
         if (process.platform === 'win32') {
-            // Gaming optimizations for Windows
-            exec('powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c'); // High performance power plan
-            exec('bcdedit /set useplatformtick yes');
-            exec('bcdedit /set disabledynamictick yes');
-            exec('reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games" /v "GPU Priority" /t REG_DWORD /d 8 /f');
-            exec('reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games" /v "Priority" /t REG_DWORD /d 6 /f');
-        }
-        return true;
-    }
-
-    async optimizePrivacy() {
-        if (process.platform === 'win32') {
-            // Privacy optimizations for Windows
-            exec('reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection" /v "AllowTelemetry" /t REG_DWORD /d 0 /f');
-            exec('reg add "HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System" /v "EnableActivityFeed" /t REG_DWORD /d 0 /f');
-            exec('sc stop DiagTrack');
-            exec('sc config DiagTrack start= disabled');
-        }
-        return true;
-    }
-
-    async runAllOptimizations() {
-        if (this.optimizations.running) return false;
-        this.optimizations.running = true;
-
-        try {
             await Promise.all([
-                this.optimizeMemory(),
-                this.optimizeNetwork(),
-                this.optimizeDisk(),
-                this.optimizeGaming(),
-                this.optimizePrivacy()
+                // System theme
+                this.setRegistryValue(
+                    'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize',
+                    'SystemUsesLightTheme',
+                    'REG_DWORD',
+                    enable ? '0' : '1'
+                ),
+                // App theme
+                this.setRegistryValue(
+                    'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize',
+                    'AppsUseLightTheme',
+                    'REG_DWORD',
+                    enable ? '0' : '1'
+                )
             ]);
-
-            store.set('lastOptimization', new Date().toISOString());
-            this.optimizations.running = false;
-            return true;
-        } catch (error) {
-            console.error('Optimization error:', error);
-            this.optimizations.running = false;
-            return false;
         }
+        this.optimizations.darkMode = enable;
+        return true;
     }
 
+    // Enhanced Privacy Mode
+    async togglePrivacyMode(enable = true) {
+        if (process.platform === 'win32') {
+            if (enable) {
+                await Promise.all([
+                    // Disable telemetry
+                    this.setRegistryValue(
+                        'HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection',
+                        'AllowTelemetry',
+                        'REG_DWORD',
+                        '0'
+                    ),
+                    // Disable advertising ID
+                    this.setRegistryValue(
+                        'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo',
+                        'Enabled',
+                        'REG_DWORD',
+                        '0'
+                    ),
+                    // Disable app diagnostics
+                    this.setRegistryValue(
+                        'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Diagnostics\\DiagTrack',
+                        'DiagTrackAuthorization',
+                        'REG_DWORD',
+                        '0'
+                    ),
+                    // Disable location tracking
+                    this.setRegistryValue(
+                        'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location',
+                        'Value',
+                        'REG_SZ',
+                        'Deny'
+                    ),
+                    // Disable timeline
+                    this.setRegistryValue(
+                        'HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System',
+                        'EnableActivityFeed',
+                        'REG_DWORD',
+                        '0'
+                    )
+                ]);
+            }
+        }
+        this.optimizations.privacyMode = enable;
+        return true;
+    }
+
+    // Ultimate Performance Mode
+    async togglePerformanceMode(enable = true) {
+        if (process.platform === 'win32') {
+            if (enable) {
+                await Promise.all([
+                    // Create and set ultimate performance power plan
+                    exec('powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61'),
+                    // Disable system restore
+                    exec('powershell -Command "Disable-ComputerRestore -Drive "C:""'),
+                    // Disable hibernate
+                    exec('powercfg -h off'),
+                    // Disable windows search
+                    exec('net stop "Windows Search"'),
+                    // Optimize visual effects
+                    this.setRegistryValue(
+                        'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects',
+                        'VisualFXSetting',
+                        'REG_DWORD',
+                        '2'
+                    )
+                ]);
+            } else {
+                await Promise.all([
+                    exec('powercfg -setactive scheme_balanced'),
+                    exec('powershell -Command "Enable-ComputerRestore -Drive "C:""'),
+                    exec('powercfg -h on'),
+                    exec('net start "Windows Search"')
+                ]);
+            }
+        }
+        this.optimizations.performanceMode = enable;
+        return true;
+    }
+
+    // Get current optimization status
     getOptimizationStatus() {
         return {
             ...this.optimizations,
             lastRun: store.get('lastOptimization')
         };
+    }
+
+    // Save settings
+    async saveSettings(settings) {
+        store.set('settings', settings);
+        return true;
+    }
+
+    // Load settings
+    getSettings() {
+        return store.get('settings', {
+            autoStart: false,
+            darkMode: true,
+            gamingMode: false,
+            privacyMode: true,
+            performanceMode: false
+        });
     }
 }
 
