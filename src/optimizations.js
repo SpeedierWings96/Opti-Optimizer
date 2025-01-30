@@ -4,8 +4,17 @@ const { exec } = require('child_process');
 const Store = require('electron-store');
 const path = require('path');
 const fs = require('fs').promises;
+const util = require('util');
+const execAsync = util.promisify(exec);
 
 const store = new Store();
+
+// Add this cache system
+const cache = {
+    lastUpdate: 0,
+    systemStatus: null,
+    updateInterval: 1000, // 1 second cache
+};
 
 class SystemOptimizer {
     constructor() {
@@ -19,53 +28,135 @@ class SystemOptimizer {
             privacyMode: false,
             performanceMode: false
         };
+        
+        // Initialize monitoring buffers
+        this.cpuHistory = new Array(60).fill(0);
+        this.memoryHistory = new Array(60).fill(0);
+        this.lastError = null;
     }
 
+    // Improved system status monitoring
     async getSystemStatus() {
-        const [cpu, mem, disk, net, graphics] = await Promise.all([
-            si.currentLoad(),
-            si.mem(),
-            si.fsSize(),
-            si.networkStats(),
-            si.graphics()
-        ]);
+        try {
+            // Return cached data if it's fresh
+            if (Date.now() - cache.lastUpdate < cache.updateInterval && cache.systemStatus) {
+                return cache.systemStatus;
+            }
 
-        return {
-            cpu: {
-                load: cpu.currentLoad,
-                temp: await si.cpuTemperature(),
-                cores: os.cpus()
-            },
-            memory: {
-                total: mem.total,
-                used: mem.used,
-                free: mem.free,
-                swapUsed: mem.swapused
-            },
-            disk: {
-                usage: disk[0].use,
-                free: disk[0].size - disk[0].used
-            },
-            network: {
-                upload: net[0].tx_sec,
-                download: net[0].rx_sec
-            },
-            gpu: graphics.controllers[0]
-        };
+            const [cpu, mem, disk, net, graphics] = await Promise.all([
+                si.currentLoad().catch(() => ({ currentLoad: 0 })),
+                si.mem().catch(() => ({ total: 0, used: 0, free: 0, swapused: 0 })),
+                si.fsSize().catch(() => ([{ use: 0, size: 0, used: 0 }])),
+                si.networkStats().catch(() => ([{ tx_sec: 0, rx_sec: 0 }])),
+                si.graphics().catch(() => ({ controllers: [{}] }))
+            ]);
+
+            // Update history buffers
+            this.cpuHistory.push(cpu.currentLoad);
+            this.cpuHistory.shift();
+            this.memoryHistory.push((mem.used / mem.total) * 100);
+            this.memoryHistory.shift();
+
+            const status = {
+                cpu: {
+                    load: cpu.currentLoad,
+                    temp: await si.cpuTemperature().catch(() => ({ main: 0 })),
+                    cores: os.cpus(),
+                    history: this.cpuHistory
+                },
+                memory: {
+                    total: mem.total,
+                    used: mem.used,
+                    free: mem.free,
+                    swapUsed: mem.swapused,
+                    history: this.memoryHistory
+                },
+                disk: {
+                    usage: disk[0].use,
+                    free: disk[0].size - disk[0].used
+                },
+                network: {
+                    upload: net[0].tx_sec,
+                    download: net[0].rx_sec
+                },
+                gpu: graphics.controllers[0]
+            };
+
+            // Update cache
+            cache.systemStatus = status;
+            cache.lastUpdate = Date.now();
+
+            return status;
+        } catch (error) {
+            console.error('Error getting system status:', error);
+            this.lastError = error;
+            return cache.systemStatus || {
+                cpu: { load: 0, temp: { main: 0 }, cores: [], history: this.cpuHistory },
+                memory: { total: 0, used: 0, free: 0, swapUsed: 0, history: this.memoryHistory },
+                disk: { usage: 0, free: 0 },
+                network: { upload: 0, download: 0 },
+                gpu: {}
+            };
+        }
+    }
+
+    // Improved registry value setter with error handling
+    async setRegistryValue(key, name, type, value) {
+        try {
+            const command = `reg add "${key}" /v "${name}" /t ${type} /d ${value} /f`;
+            await execAsync(command);
+            return true;
+        } catch (error) {
+            console.error(`Failed to set registry value ${key}\\${name}:`, error);
+            throw new Error(`Registry operation failed: ${error.message}`);
+        }
+    }
+
+    // Add error handling to exec commands
+    async execCommand(command) {
+        try {
+            await execAsync(command);
+            return true;
+        } catch (error) {
+            console.error(`Failed to execute command: ${command}`, error);
+            throw new Error(`Command execution failed: ${error.message}`);
+        }
+    }
+
+    // Enhanced Memory Optimization with better error handling
+    async optimizeMemory() {
+        if (process.platform === 'win32') {
+            try {
+                const commands = [
+                    'powershell -Command "Get-Process | Where-Object {$_.Name -notlike \'*system*\'} | Sort-Object -Property WS -Descending | Select-Object -First 5 | Stop-Process -Force"',
+                    'ipconfig /flushdns',
+                    'del /f /s /q %temp%\\*',
+                    'net stop superfetch',
+                    'powershell -Command "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"'
+                ];
+
+                for (const command of commands) {
+                    await this.execCommand(command).catch(console.error);
+                }
+
+                await this.setRegistryValue(
+                    'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management',
+                    'ClearPageFileAtShutdown',
+                    'REG_DWORD',
+                    '1'
+                );
+
+                this.optimizations.memoryOptimized = true;
+                return true;
+            } catch (error) {
+                console.error('Memory optimization failed:', error);
+                throw error;
+            }
+        }
+        return false;
     }
 
     // Windows Registry Tweaks
-    async setRegistryValue(key, name, type, value) {
-        const command = `reg add "${key}" /v "${name}" /t ${type} /d ${value} /f`;
-        return new Promise((resolve, reject) => {
-            exec(command, (error) => {
-                if (error) reject(error);
-                else resolve(true);
-            });
-        });
-    }
-
-    // Power Plan Control
     async togglePowerPlan(enable = true) {
         if (process.platform === 'win32') {
             if (enable) {
@@ -194,35 +285,6 @@ class SystemOptimizer {
                 enable ? '1' : '0'
             );
         }
-        return true;
-    }
-
-    // Enhanced Memory Optimization
-    async optimizeMemory() {
-        if (process.platform === 'win32') {
-            await Promise.all([
-                // Clear system working set
-                exec('powershell -Command "EmptyStandbyList"'),
-                // Clear DNS cache
-                exec('ipconfig /flushdns'),
-                // Clear temp files
-                exec('del /f /s /q %temp%\\*'),
-                // Disable superfetch
-                exec('net stop superfetch'),
-                // Clear Windows Store cache
-                exec('wsreset.exe'),
-                // Clear system restore points
-                exec('vssadmin delete shadows /all /quiet'),
-                // Optimize paging file
-                this.setRegistryValue(
-                    'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management',
-                    'PagingFiles',
-                    'REG_MULTI_SZ',
-                    'C:\\pagefile.sys 16384 16384'
-                )
-            ]);
-        }
-        this.optimizations.memoryOptimized = true;
         return true;
     }
 
@@ -462,6 +524,25 @@ class SystemOptimizer {
             privacyMode: true,
             performanceMode: false
         });
+    }
+
+    // Add a method to get the last error
+    getLastError() {
+        return this.lastError;
+    }
+
+    // Add a method to clear optimization flags
+    resetOptimizations() {
+        this.optimizations = {
+            running: false,
+            memoryOptimized: false,
+            networkOptimized: false,
+            diskOptimized: false,
+            gamingMode: false,
+            darkMode: false,
+            privacyMode: false,
+            performanceMode: false
+        };
     }
 }
 

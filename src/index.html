@@ -655,7 +655,7 @@
             });
         });
 
-        // Performance Chart
+        // Performance Chart with optimized settings
         const ctx = document.getElementById('performance-chart').getContext('2d');
         const chart = new Chart(ctx, {
             type: 'line',
@@ -664,49 +664,95 @@
                 datasets: [{
                     label: 'CPU Usage',
                     borderColor: '#7c4dff',
-                    data: []
+                    data: [],
+                    fill: false,
+                    tension: 0.4
                 }, {
                     label: 'Memory Usage',
                     borderColor: '#00ff9d',
-                    data: []
+                    data: [],
+                    fill: false,
+                    tension: 0.4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: {
-                    duration: 0
+                animation: false,
+                elements: {
+                    point: {
+                        radius: 0
+                    }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 100
+                        max: 100,
+                        ticks: {
+                            stepSize: 20
+                        }
+                    },
+                    x: {
+                        display: true,
+                        ticks: {
+                            maxTicksLimit: 5
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
                     }
                 }
             }
         });
 
-        // Update system stats
+        let updateStatsTimeout;
+        let isUpdating = false;
+
+        // Optimized system stats update
         async function updateStats() {
-            const status = await window.api.optimizer.getSystemStatus();
-            
-            document.getElementById('cpu-usage').textContent = `${Math.round(status.cpu.load)}%`;
-            document.getElementById('memory-usage').textContent = `${Math.round((status.memory.used / status.memory.total) * 100)}%`;
-            document.getElementById('disk-usage').textContent = `${Math.round(status.disk.usage)}%`;
-            document.getElementById('network-speed').textContent = `${Math.round(status.network.download / 1024 / 1024)} MB/s`;
+            if (isUpdating) return;
+            isUpdating = true;
 
-            // Update chart
-            const time = new Date().toLocaleTimeString();
-            chart.data.labels.push(time);
-            chart.data.datasets[0].data.push(Math.round(status.cpu.load));
-            chart.data.datasets[1].data.push(Math.round((status.memory.used / status.memory.total) * 100));
+            try {
+                const status = await window.api.optimizer.getSystemStatus();
+                
+                // Update stats only if the element exists
+                const elements = {
+                    'cpu-usage': status.cpu.load,
+                    'memory-usage': (status.memory.used / status.memory.total) * 100,
+                    'disk-usage': status.disk.usage,
+                    'network-speed': status.network.download / 1024 / 1024
+                };
 
-            if (chart.data.labels.length > 10) {
-                chart.data.labels.shift();
-                chart.data.datasets.forEach(dataset => dataset.data.shift());
+                Object.entries(elements).forEach(([id, value]) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = `${Math.round(value)}${id === 'network-speed' ? ' MB/s' : '%'}`;
+                    }
+                });
+
+                // Update chart only if we're on the dashboard
+                if (document.getElementById('dashboard-page').style.display !== 'none') {
+                    const time = new Date().toLocaleTimeString();
+                    
+                    // Use CPU and Memory history from the status
+                    chart.data.labels = Array(status.cpu.history.length).fill('').map((_, i) => 
+                        i === status.cpu.history.length - 1 ? time : ''
+                    );
+                    chart.data.datasets[0].data = status.cpu.history;
+                    chart.data.datasets[1].data = status.memory.history;
+                    
+                    chart.update('none'); // Update without animation
+                }
+            } catch (error) {
+                console.error('Error updating stats:', error);
+            } finally {
+                isUpdating = false;
+                updateStatsTimeout = setTimeout(updateStats, 1000);
             }
-
-            chart.update();
         }
 
         // Toast notification
@@ -734,7 +780,12 @@
             });
 
             // Start stats update
-            setInterval(updateStats, 1000);
+            updateStats();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            clearTimeout(updateStatsTimeout);
         });
     </script>
 </body>
