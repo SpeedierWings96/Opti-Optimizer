@@ -65,6 +65,138 @@ class SystemOptimizer {
         });
     }
 
+    // Power Plan Control
+    async togglePowerPlan(enable = true) {
+        if (process.platform === 'win32') {
+            if (enable) {
+                await exec('powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c');
+            } else {
+                await exec('powercfg -setactive scheme_balanced');
+            }
+        }
+        return true;
+    }
+
+    // Windows Game Mode
+    async toggleWindowsGameMode(enable = true) {
+        if (process.platform === 'win32') {
+            await this.setRegistryValue(
+                'HKCU\\Software\\Microsoft\\GameBar',
+                'AllowAutoGameMode',
+                'REG_DWORD',
+                enable ? '1' : '0'
+            );
+            await this.setRegistryValue(
+                'HKCU\\Software\\Microsoft\\GameBar',
+                'AutoGameModeEnabled',
+                'REG_DWORD',
+                enable ? '1' : '0'
+            );
+        }
+        return true;
+    }
+
+    // GPU Priority
+    async toggleGPUPriority(enable = true) {
+        if (process.platform === 'win32') {
+            await this.setRegistryValue(
+                'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile\\Tasks\\Games',
+                'GPU Priority',
+                'REG_DWORD',
+                enable ? '8' : '4'
+            );
+            await this.setRegistryValue(
+                'HKLM\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers',
+                'HwSchMode',
+                'REG_DWORD',
+                enable ? '2' : '1'
+            );
+        }
+        return true;
+    }
+
+    // Telemetry Control
+    async toggleTelemetry(enable = true) {
+        if (process.platform === 'win32') {
+            const services = ['DiagTrack', 'dmwappushservice'];
+            for (const service of services) {
+                await exec(`sc ${enable ? 'stop' : 'start'} ${service}`);
+                await exec(`sc config ${service} start= ${enable ? 'disabled' : 'auto'}`);
+            }
+            await this.setRegistryValue(
+                'HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection',
+                'AllowTelemetry',
+                'REG_DWORD',
+                enable ? '0' : '1'
+            );
+        }
+        return true;
+    }
+
+    // Location Services
+    async toggleLocationServices(enable = true) {
+        if (process.platform === 'win32') {
+            await this.setRegistryValue(
+                'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location',
+                'Value',
+                'REG_SZ',
+                enable ? 'Deny' : 'Allow'
+            );
+            await exec(`sc ${enable ? 'stop' : 'start'} lfsvc`);
+        }
+        return true;
+    }
+
+    // Activity History
+    async toggleActivityHistory(enable = true) {
+        if (process.platform === 'win32') {
+            await this.setRegistryValue(
+                'HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System',
+                'EnableActivityFeed',
+                'REG_DWORD',
+                enable ? '0' : '1'
+            );
+            await this.setRegistryValue(
+                'HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\System',
+                'PublishUserActivities',
+                'REG_DWORD',
+                enable ? '0' : '1'
+            );
+        }
+        return true;
+    }
+
+    // Auto Start Control
+    async toggleAutoStart(enable = true) {
+        if (process.platform === 'win32') {
+            const regPath = 'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run';
+            if (enable) {
+                await this.setRegistryValue(
+                    regPath,
+                    'OptiOptimizer',
+                    'REG_SZ',
+                    `"${process.execPath}"`
+                );
+            } else {
+                await exec(`reg delete "${regPath}" /v "OptiOptimizer" /f`);
+            }
+        }
+        return true;
+    }
+
+    // Notifications Control
+    async toggleNotifications(enable = true) {
+        if (process.platform === 'win32') {
+            await this.setRegistryValue(
+                'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\PushNotifications',
+                'ToastEnabled',
+                'REG_DWORD',
+                enable ? '1' : '0'
+            );
+        }
+        return true;
+    }
+
     // Enhanced Memory Optimization
     async optimizeMemory() {
         if (process.platform === 'win32') {
@@ -77,6 +209,10 @@ class SystemOptimizer {
                 exec('del /f /s /q %temp%\\*'),
                 // Disable superfetch
                 exec('net stop superfetch'),
+                // Clear Windows Store cache
+                exec('wsreset.exe'),
+                // Clear system restore points
+                exec('vssadmin delete shadows /all /quiet'),
                 // Optimize paging file
                 this.setRegistryValue(
                     'HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management',
@@ -99,18 +235,26 @@ class SystemOptimizer {
                 exec('netsh int tcp set global chimney=enabled'),
                 exec('netsh int tcp set global dca=enabled'),
                 exec('netsh int tcp set global netdma=enabled'),
+                exec('netsh int tcp set global ecncapability=enabled'),
                 // Optimize network adapter
                 exec('netsh int ip reset'),
                 exec('netsh winsock reset'),
-                // Set DNS to Google's DNS
-                exec('netsh interface ip set dns "Ethernet" static 8.8.8.8'),
-                exec('netsh interface ip add dns "Ethernet" 8.8.4.4 index=2'),
+                // Set DNS to Cloudflare's DNS
+                exec('netsh interface ip set dns "Ethernet" static 1.1.1.1'),
+                exec('netsh interface ip add dns "Ethernet" 1.0.0.1 index=2'),
                 // Enable QoS
                 this.setRegistryValue(
                     'HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Psched',
                     'NonBestEffortLimit',
                     'REG_DWORD',
                     '0'
+                ),
+                // Optimize network throttling
+                this.setRegistryValue(
+                    'HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile',
+                    'NetworkThrottlingIndex',
+                    'REG_DWORD',
+                    'ffffffff'
                 )
             ]);
         }

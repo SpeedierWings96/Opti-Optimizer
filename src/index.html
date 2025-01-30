@@ -585,27 +585,73 @@
 
         // Toggle Switches
         document.querySelectorAll('.toggle-switch').forEach(toggle => {
-            toggle.addEventListener('click', () => {
+            toggle.addEventListener('click', async () => {
                 toggle.classList.toggle('active');
                 const isActive = toggle.classList.contains('active');
                 
-                // Call appropriate API based on toggle ID
-                switch(toggle.id) {
-                    case 'performance-mode':
-                        window.api.optimizer.togglePerformanceMode(isActive);
-                        break;
-                    case 'gaming-mode':
-                        window.api.optimizer.toggleGamingMode(isActive);
-                        break;
-                    case 'dark-mode':
-                        window.api.optimizer.toggleDarkMode(isActive);
-                        break;
-                    case 'privacy-mode':
-                        window.api.optimizer.togglePrivacyMode(isActive);
-                        break;
-                }
+                try {
+                    // Call appropriate API based on toggle ID
+                    switch(toggle.id) {
+                        case 'performance-mode':
+                            await window.api.optimizer.togglePerformanceMode(isActive);
+                            break;
+                        case 'memory-optimization':
+                            await window.api.optimizer.optimizeMemory();
+                            break;
+                        case 'network-optimization':
+                            await window.api.optimizer.optimizeNetwork();
+                            break;
+                        case 'gaming-mode':
+                            await window.api.optimizer.toggleGamingMode(isActive);
+                            break;
+                        case 'power-plan':
+                            await window.api.optimizer.togglePowerPlan(isActive);
+                            break;
+                        case 'windows-game-mode':
+                            await window.api.optimizer.toggleWindowsGameMode(isActive);
+                            break;
+                        case 'gpu-priority':
+                            await window.api.optimizer.toggleGPUPriority(isActive);
+                            break;
+                        case 'dark-mode':
+                            await window.api.optimizer.toggleDarkMode(isActive);
+                            break;
+                        case 'privacy-mode':
+                            await window.api.optimizer.togglePrivacyMode(isActive);
+                            break;
+                        case 'telemetry':
+                            await window.api.optimizer.toggleTelemetry(isActive);
+                            break;
+                        case 'location-services':
+                            await window.api.optimizer.toggleLocationServices(isActive);
+                            break;
+                        case 'activity-history':
+                            await window.api.optimizer.toggleActivityHistory(isActive);
+                            break;
+                        case 'auto-start':
+                            await window.api.optimizer.toggleAutoStart(isActive);
+                            break;
+                        case 'notifications':
+                            await window.api.optimizer.toggleNotifications(isActive);
+                            break;
+                    }
 
-                showToast(`${toggle.id.replace('-', ' ')} ${isActive ? 'enabled' : 'disabled'}`, isActive ? 'success' : 'error');
+                    // Save settings
+                    const settings = {
+                        autoStart: document.getElementById('auto-start').classList.contains('active'),
+                        darkMode: document.getElementById('dark-mode').classList.contains('active'),
+                        gamingMode: document.getElementById('gaming-mode').classList.contains('active'),
+                        privacyMode: document.getElementById('privacy-mode').classList.contains('active'),
+                        performanceMode: document.getElementById('performance-mode').classList.contains('active')
+                    };
+                    await window.api.optimizer.saveSettings(settings);
+
+                    showToast(`${toggle.id.replace(/-/g, ' ')} ${isActive ? 'enabled' : 'disabled'}`, 'success');
+                } catch (error) {
+                    console.error('Error toggling setting:', error);
+                    toggle.classList.toggle('active'); // Revert the toggle
+                    showToast(`Failed to ${isActive ? 'enable' : 'disable'} ${toggle.id.replace(/-/g, ' ')}`, 'error');
+                }
             });
         });
 

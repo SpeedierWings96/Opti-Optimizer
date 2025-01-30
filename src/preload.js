@@ -14,14 +14,41 @@ contextBridge.exposeInMainWorld(
       ipcRenderer.on('app-ready', callback);
     },
     optimizer: {
+      // System Status
       getSystemStatus: () => optimizer.getSystemStatus(),
-      runAllOptimizations: () => optimizer.runAllOptimizations(),
+      getOptimizationStatus: () => optimizer.getOptimizationStatus(),
+      
+      // Memory Optimization
       optimizeMemory: () => optimizer.optimizeMemory(),
+      
+      // Network Optimization
       optimizeNetwork: () => optimizer.optimizeNetwork(),
-      optimizeDisk: () => optimizer.optimizeDisk(),
-      optimizeGaming: () => optimizer.optimizeGaming(),
-      optimizePrivacy: () => optimizer.optimizePrivacy(),
-      getOptimizationStatus: () => optimizer.getOptimizationStatus()
+      
+      // Gaming Mode
+      toggleGamingMode: (enable) => optimizer.toggleGamingMode(enable),
+      
+      // Performance Mode
+      togglePerformanceMode: (enable) => optimizer.togglePerformanceMode(enable),
+      
+      // Privacy Mode
+      togglePrivacyMode: (enable) => optimizer.togglePrivacyMode(enable),
+      
+      // Dark Mode
+      toggleDarkMode: (enable) => optimizer.toggleDarkMode(enable),
+      
+      // Settings
+      getSettings: () => optimizer.getSettings(),
+      saveSettings: (settings) => optimizer.saveSettings(settings),
+
+      // Additional Controls
+      togglePowerPlan: (enable) => optimizer.togglePowerPlan(enable),
+      toggleWindowsGameMode: (enable) => optimizer.toggleWindowsGameMode(enable),
+      toggleGPUPriority: (enable) => optimizer.toggleGPUPriority(enable),
+      toggleTelemetry: (enable) => optimizer.toggleTelemetry(enable),
+      toggleLocationServices: (enable) => optimizer.toggleLocationServices(enable),
+      toggleActivityHistory: (enable) => optimizer.toggleActivityHistory(enable),
+      toggleAutoStart: (enable) => optimizer.toggleAutoStart(enable),
+      toggleNotifications: (enable) => optimizer.toggleNotifications(enable)
     },
     getSystemInfo: async () => {
       const os = require('os');
