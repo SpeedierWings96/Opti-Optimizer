@@ -3,6 +3,8 @@ const optimizer = require('./optimizations');
 const cleaner = require('./cleaners');
 const tweaks = require('./tweaks');
 const analytics = require('./analytics');
+const fileManager = require('./fileManager');
+const startupManager = require('./startupManager');
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -80,6 +82,26 @@ contextBridge.exposeInMainWorld(
       
       // System Health
       getSystemHealth: () => analytics.getSystemHealth()
+    },
+    fileManager: {
+      // File Operations
+      scanDirectory: (path) => fileManager.scanDirectory(path),
+      deleteFiles: (paths, secure) => fileManager.deleteFiles(paths, secure),
+      findLargeFiles: (minSize) => fileManager.findLargeFiles(minSize),
+      findDuplicateFiles: (directory) => fileManager.findDuplicateFiles(directory),
+      
+      // Drive Information
+      getDriveInfo: () => fileManager.getDriveInfo(),
+      
+      // Bloatware Management
+      removeBloatware: () => fileManager.removeBloatware()
+    },
+    startupManager: {
+      // Startup Management
+      getStartupItems: () => startupManager.getStartupItems(),
+      toggleStartupItem: (item, enable) => startupManager.toggleStartupItem(item, enable),
+      optimizeStartup: () => startupManager.optimizeStartup(),
+      addStartupItem: (name, command) => startupManager.addStartupItem(name, command)
     },
     // Additional Controls
     controls: {
